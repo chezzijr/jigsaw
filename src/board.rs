@@ -149,10 +149,11 @@ impl Board {
         self.solve(0);
         let elapsed_time = now.elapsed();
 
-        match self.solution {
-            Some(_) => println!("Solution found after {}s", elapsed_time.as_secs_f32()),
-            None => println!("No solution found"),
-        };
+        if self.solution_found {
+            println!("Solution found after {}s", elapsed_time.as_secs_f32());
+        } else {
+            println!("No solution found");
+        }
 
         self.solution.as_ref()
     }
