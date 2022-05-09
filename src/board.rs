@@ -17,6 +17,12 @@ pub struct Board {
 impl Board {
     pub fn new(size: (usize, usize), polyominoes: Vec<Polyomino>) -> Self {
         let (rows, cols) = size;
+        let sum_area: usize = polyominoes.iter().map(|p| p.size).sum();
+
+        if sum_area != rows * cols {
+            panic!("The polyominoes will not fit the board as they have different area");
+        }
+
         let min_size = polyominoes
             .iter()
             .min_by(|x, y| x.size.cmp(&y.size))
@@ -81,49 +87,34 @@ impl Board {
     // Which results in non-placeable area
     pub fn has_unfillable_space(&self) -> bool {
         let mut mask = self.b.buf.clone();
+
+        fn get_area(
+            board: &mut Vec<Vec<bool>>,
+            y: usize,
+            x: usize,
+            (rows, cols): (usize, usize),
+        ) -> usize {
+            if board[y][x] {
+                return 0;
+            }
+
+            board[y][x] = true;
+            let mut res = 1;
+
+            for (dy, dx) in [(1isize, 0isize), (-1, 0), (0, 1), (0, -1)].iter() {
+                let (new_y, new_x) = (y as isize + *dy, x as isize + *dx);
+                if (0 <= new_y && new_y < rows as isize) && (0 <= new_x && new_x < cols as isize) {
+                    res += get_area(board, new_y as usize, new_x as usize, (rows, cols))
+                }
+            }
+
+            res
+        }
+
         for y in 0..self.size.0 {
             for x in 0..self.size.1 {
                 if !mask[y][x] {
-                    let mut blocked_of_region_size: usize = 1;
-                    mask[y][x] = true;
-                    let mut to_check = Vec::new();
-
-                    for (dy, dx) in [(1, 0), (-1i32, 0), (0, 1), (0, -1i32)] {
-                        let new_y = y as i32 + dy;
-                        let new_x = x as i32 + dx;
-                        if (0 <= new_y && new_y < self.size.0 as i32)
-                            && (0 <= new_x && new_x < self.size.1 as i32)
-                        {
-                            if !mask[new_y as usize][new_x as usize] {
-                                mask[new_y as usize][new_x as usize] = true;
-                                to_check.push((new_y as usize, new_x as usize));
-                                blocked_of_region_size += 1;
-                            }
-                        }
-                    }
-
-                    while to_check.len() != 0 {
-                        let mut new_to_check = Vec::new();
-                        for (sy, sx) in to_check {
-                            for (dy, dx) in [(1, 0), (-1i32, 0), (0, 1), (0, -1i32)] {
-                                let new_y = sy as i32 + dy;
-                                let new_x = sx as i32 + dx;
-                                if (0 <= new_y && new_y < self.size.0 as i32)
-                                    && (0 <= new_x && new_x < self.size.1 as i32)
-                                {
-                                    if !mask[new_y as usize][new_x as usize] {
-                                        mask[new_y as usize][new_x as usize] = true;
-                                        new_to_check.push((new_y as usize, new_x as usize));
-                                        blocked_of_region_size += 1;
-                                    }
-                                }
-                            }
-                        }
-
-                        to_check = new_to_check;
-                    }
-
-                    if blocked_of_region_size < self.min_poliomino_size {
+                    if get_area(&mut mask, y, x, self.size) < self.min_poliomino_size {
                         return true;
                     }
                 }
